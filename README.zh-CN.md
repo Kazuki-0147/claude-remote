@@ -6,7 +6,7 @@
 
 [English](README.md) · **简体中文**
 
-### 在 iPhone 上远程查看、续聊与审批 Mac / Linux 主机上的 Claude Code 会话
+### 在 iPhone / Android 上远程查看、续聊与审批 Mac / Linux 主机上的 Claude Code 会话
 
 **把桌面或服务器终端里的 Claude Code 带到手机上——实时镜像、双向接力、安全审批、多通道连接。**
 
@@ -15,7 +15,7 @@ Local-first · 只读 JSONL 历史 · Fail-closed 审批 · Tailscale / 自建 R
 <br />
 
 [![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933?logo=node.js&logoColor=white)](package.json)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%2B%20iOS-000000?logo=apple&logoColor=white)](#快速开始)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%2B%20iOS%20%7C%20Android-000000?logo=apple&logoColor=white)](#快速开始)
 
 <br />
 
@@ -95,7 +95,7 @@ Local-first · 只读 JSONL 历史 · Fail-closed 审批 · Tailscale / 自建 R
 ## 整体结构
 
 ```text
-iPhone App (app/ + web/core/)
+移动应用 (iOS/Android - app/ + web/core/)
    │  HTTP + WebSocket · Bearer Token
    ├── 直连通道：局域网 / Tailscale / mDNS（优先）
    └── 中转通道：https://<RELAY_HOST>/d/<deviceId> ── packages/relay（自建公网服务器）

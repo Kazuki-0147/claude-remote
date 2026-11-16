@@ -73,18 +73,34 @@ cr relay add https://<RELAY_HOST> <密钥>
 
 ---
 
-## 第三步：安装 iPhone 客户端
+## 第三步：安装移动客户端
 
-### 方式一：下载 `.ipa` 自签安装（推荐）
+### iOS 用户
 
-1. 前往 [GitHub Releases](https://github.com/xuzihan0823/claude-remote/releases/latest) 下载最新的 `.ipa` 文件。
-2. 使用你常用的 iOS 自签 / 侧载工具（如 AltStore、SideStore、Sideloadly、TrollStore 或其他自签工具）对 `.ipa` 重签并安装到 iPhone。
-3. 若使用个人 Apple ID 免费自签，请在 iPhone「设置 → 通用 → VPN 与设备管理」中信任对应开发者证书后再打开 App。
+#### 方式一：从源码构建安装
 
-### 方式二：从源码编译安装（开发者）
+需在 Mac 上通过 Xcode 编译（详见下方「方式二」展开步骤）。
+
+### Android 用户
+
+#### 使用 EAS Build 构建
+
+详细构建步骤请参考 [Android 构建指南](build-android.md)。
+
+快速开始：
+```bash
+npm install -g eas-cli
+cd claude-remote/app
+eas login
+eas build --platform android --profile preview
+```
+
+构建完成后下载 APK，在 Android 设备上启用「设置 → 安全 → 未知来源」后安装。
+
+#### iOS 源码编译详细步骤
 
 <details>
-<summary><strong>展开查看 Xcode 源码构建步骤</strong></summary>
+<summary><strong>展开查看 iOS 源码构建步骤</strong></summary>
 
 <br />
 

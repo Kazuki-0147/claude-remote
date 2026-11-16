@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install app dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: Generate Android project
+        working-directory: ./app
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build APK
+        working-directory: ./app/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-remote-android-${{ github.sha }}
+          path: app/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Get short SHA
+        id: slug
+        run: echo "sha8=$(echo ${{ github.sha }} | cut -c1-8)" >> $GITHUB_OUTPUT
+
+      - name: Create release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/android/app/build/outputs/apk/release/app-release.apk
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Android APK
+
+            Build from commit ${{ steps.slug.outputs.sha8 }}
+
+            ### Installation
+            1. Download `app-release.apk`
+            2. Enable "Unknown sources" in Android settings
+            3. Install the APK
+            4. Scan the pairing QR code from your host
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

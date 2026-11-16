@@ -4,12 +4,12 @@
 
 # claude-remote
 
-**View and continue Claude Code sessions on your iPhone, and respond to approval requests from a Mac or Linux host.**
+**View and continue Claude Code sessions on your iPhone or Android device, and respond to approval requests from a Mac or Linux host.**
 
 **English** · [简体中文](README.zh-CN.md)
 
 [![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933?logo=node.js&logoColor=white)](package.json)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%2B%20iOS-000000?logo=apple&logoColor=white)](#quick-start)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%2B%20iOS%20%7C%20Android-000000?logo=apple&logoColor=white)](#quick-start)
 
 [Quick start](#quick-start) · [Deployment guide (Chinese)](docs/deployment.md) ·
 [Screenshots](docs/screenshots.md) · [Architecture](#architecture) ·
@@ -41,7 +41,7 @@ The host needs macOS or Linux, **Node.js 22.13.0 or later**, and an installed an
    - **Tailscale Serve:** Sign the host and iPhone into the same tailnet, then run `cr pair --tailscale` on the host.
    - **Same Wi-Fi:** Run `cr config set host 0.0.0.0` and restart the daemon as prompted.
    - **Self-hosted Relay:** [Deploy Relay on a public Linux server](deploy/relay/README.md), then run the generated `cr relay add` command on the Claude Code host.
-3. Download the [latest iPhone `.ipa`](https://github.com/xuzihan0823/claude-remote/releases/latest). Sign it with your own signing setup before sideloading it.
+3. Build the mobile app yourself (see [Android build guide](docs/build-android.md) or [deployment guide](docs/deployment.md) for iOS).
 4. Run `cr pair` on the host and scan the QR code. If you set up Tailscale Serve with `cr pair --tailscale`, you can scan the QR code from that command.
 
 ### Set up with a terminal agent
@@ -58,7 +58,7 @@ Help me deploy and pair claude-remote from https://github.com/xuzihan0823/claude
    - Tailscale Serve: Check tailscale status and have me sign the host and iPhone into the same tailnet if needed. With the daemon running, run cr pair --tailscale. If Tailscale asks for browser approval to enable HTTPS, stop and show me the approval link.
    - Same Wi-Fi: Run cr config set host 0.0.0.0, restart the daemon as prompted, then run cr pair.
    - Self-hosted Relay: With my approval, run curl -fsSL https://raw.githubusercontent.com/xuzihan0823/claude-remote/main/deploy/relay/install.sh | sudo bash on my public Linux server. Check that ports 443 and 80 are available as required. Run the generated cr relay add command on the Claude Code host, then run cr pair.
-5. Point me to the latest iPhone IPA in GitHub Releases so I can sign and install it, then have me scan the pairing QR code.
+5. Guide me through building the mobile app from source (iOS or Android), then have me scan the pairing QR code.
 ```
 
 The [deployment guide (Chinese)](docs/deployment.md) covers manual setup and building the iOS app from source.
@@ -66,7 +66,7 @@ The [deployment guide (Chinese)](docs/deployment.md) covers manual setup and bui
 ## Architecture
 
 ```text
-iPhone app (app/ + web/core/)
+Mobile app (iOS/Android - app/ + web/core/)
     │ HTTP and WebSocket with a bearer token
     ├── Direct: LAN, Tailscale, or mDNS
     └── Relay: https://<RELAY_HOST>/d/<deviceId> (packages/relay)
@@ -131,7 +131,7 @@ The npm build writes to `dist/npm/`. The legacy command `pnpm test:web` runs the
 
 | Path | Contents |
 | --- | --- |
-| [app/](app/) | React Native and Expo iPhone app |
+| [app/](app/) | React Native and Expo mobile app (iOS + Android) |
 | [docs/](docs/) | Deployment, screenshots, and architecture notes |
 | [packages/](packages/) | CLI, daemon, Agent SDK bridge, approvals, and Relay |
 | [web/core/](web/core/) | Shared mobile networking, session state, and tests |
