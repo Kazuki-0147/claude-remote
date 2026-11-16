@@ -15,6 +15,7 @@ import { stripWrapperTags } from "./reader.js";
 import type { SessionSummary } from "./types.js";
 
 const TITLE_MAX_CHARS = 60;
+const AI_TITLE_MAX_LINES = 256;
 const PREVIEW_MAX_CHARS = 80;
 const PREVIEW_INITIAL_TAIL_BYTES = 64 * 1024;
 const PREVIEW_MAX_TAIL_BYTES = 1024 * 1024;
@@ -79,15 +80,22 @@ interface HeadInfo {
 // 第三方模式的桌面端是 "claude-desktop-3p"，与 CLI 一样保留。
 const HIDDEN_ENTRYPOINTS = new Set(["claude-desktop"]);
 
-/** 头部流式扫：cwd 取首个带 cwd 字段的行；title 取首条真实 user 文本。拿齐即停。 */
+/**
+ * 头部流式扫：cwd 取首个带 cwd 字段的行；优先读取 Claude Code 写入的 ai-title，
+ * 找不到时回退到首条真实 user 文本。标题通常在前几百行内生成，避免没有 ai-title
+ * 的超大历史文件为了找一个不存在的字段而被完整扫描。
+ */
 async function scanHead(filePath: string): Promise<HeadInfo> {
   const stream = createReadStream(filePath, { encoding: "utf8" });
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
   let cwd = "";
-  let title = "";
+  let fallbackTitle = "";
+  let aiTitle = "";
   let entrypoint = "";
+  let lineCount = 0;
   try {
     for await (const line of lines) {
+      lineCount += 1;
       const trimmed = line.trim();
       if (trimmed === "") continue;
       let o: unknown;
@@ -101,17 +109,22 @@ async function scanHead(filePath: string): Promise<HeadInfo> {
         cwd = o.cwd;
         if (typeof o.entrypoint === "string") entrypoint = o.entrypoint;
       }
-      if (title === "") {
-        const text = realUserText(o);
-        if (text !== "") title = toSingleLineTruncated(text, TITLE_MAX_CHARS);
+      if (aiTitle === "" && o.type === "ai-title" && typeof o.aiTitle === "string") {
+        const text = o.aiTitle.trim();
+        if (text !== "") aiTitle = toSingleLineTruncated(text, TITLE_MAX_CHARS);
       }
-      if (cwd !== "" && title !== "") break;
+      if (fallbackTitle === "") {
+        const text = realUserText(o);
+        if (text !== "") fallbackTitle = toSingleLineTruncated(text, TITLE_MAX_CHARS);
+      }
+      if (cwd !== "" && aiTitle !== "") break;
+      if (cwd !== "" && fallbackTitle !== "" && lineCount >= AI_TITLE_MAX_LINES) break;
     }
   } finally {
     lines.close();
     stream.destroy();
   }
-  return { cwd, title, entrypoint };
+  return { cwd, title: aiTitle || fallbackTitle, entrypoint };
 }
 
 /** 尾部块读最后一条非 sidechain、非 isMeta 的 user/assistant 行，提取预览文本。 */

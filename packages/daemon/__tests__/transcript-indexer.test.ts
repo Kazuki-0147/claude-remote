@@ -39,7 +39,7 @@ test("listSessions returns all sessions sorted by lastActiveAt desc", async () =
   assert.equal(fork?.projectDirName, "-home-bob-projB");
 });
 
-test("cwd comes from in-line cwd field, title from first real user text", async () => {
+test("cwd comes from in-line cwd field, title falls back to first real user text", async () => {
   const sessions = await listSessions(fixturesDir);
   const byId = new Map(sessions.map((s) => [s.sessionId, s]));
 
@@ -58,6 +58,25 @@ test("cwd comes from in-line cwd field, title from first real user text", async 
   assert.equal(fork?.cwd, "/home/bob/projB");
   assert.equal(fork?.title, "第一个问题：这个函数是干嘛的？");
   assert.equal(fork?.lastPreview, "重构完成，函数拆成了两个。");
+});
+
+test("Claude Code ai-title overrides the first user message", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "claude-remote-idx-"));
+  try {
+    const projectDir = join(dir, "-tmp-proj");
+    await mkdir(projectDir);
+    const lines = [
+      JSON.stringify({ type: "user", uuid: "u1", cwd: "/tmp/proj", message: { role: "user", content: "这是第一条消息，不是标题" } }),
+      JSON.stringify({ type: "ai-title", sessionId: "99999999-ffff-4fff-8fff-999999999999", aiTitle: "Claude Code 自动生成的标题" }),
+      JSON.stringify({ type: "assistant", uuid: "a1", parentUuid: "u1", message: { role: "assistant", content: [{ type: "text", text: "回答" }] } }),
+    ].join("\n");
+    await writeFile(join(projectDir, "99999999-ffff-4fff-8fff-999999999999.jsonl"), `${lines}\n`);
+
+    const sessions = await listSessions(dir);
+    assert.equal(sessions[0]?.title, "Claude Code 自动生成的标题");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("empty and metadata-only sessions fall back to (空会话) with empty cwd", async () => {
