@@ -8,6 +8,18 @@ const COMMANDS = [
   { name: '/clear', description: '清空当前会话', icon: 'trash-2' },
   { name: '/model', description: '切换模型', icon: 'cpu' },
   { name: '/effort', description: '设置思考程度', icon: 'brain' },
+  { name: '/resume', description: '恢复之前的会话', icon: 'corner-up-left' },
+  { name: '/stop', description: '停止当前运行', icon: 'square' },
+  { name: '/compact', description: '压缩会话历史', icon: 'minimize-2' },
+  { name: '/rename', description: '重命名会话', icon: 'edit-3' },
+  { name: '/artifacts', description: '管理 Artifacts', icon: 'box' },
+  { name: '/loop', description: '循环执行任务', icon: 'repeat' },
+  { name: '/config', description: '配置设置', icon: 'settings' },
+  { name: '/doctor', description: '诊断问题', icon: 'activity' },
+  { name: '/usage-credits', description: '查看用量', icon: 'pie-chart' },
+  { name: '/code-review', description: '代码审查', icon: 'file-text' },
+  { name: '/simplify', description: '简化代码', icon: 'minimize' },
+  { name: '/fast', description: '切换快速模式', icon: 'zap' },
 ];
 
 export function SlashCommandList({ onSelect, filterText = '' }) {
