@@ -251,8 +251,73 @@ export function ChatComposer({
   };
 
   const handleCommandSelect = (command) => {
-    setDraft(command + ' ');
     setShowSlashCommands(false);
+    // 直接执行斜杠命令
+    setDraft(command);
+    // 延迟执行以确保 draft 状态更新
+    setTimeout(() => {
+      const commandText = command.trim();
+      if (commandText && canSend) {
+        const delivery = {
+          clientMessageId: newClientMessageId(),
+          text: commandText,
+          files: [],
+          body: null
+        };
+        executeSend(delivery);
+      }
+    }, 0);
+  };
+
+  const executeSend = async (delivery) => {
+    const generation = sendGeneration.current;
+    const requestToken = token;
+    if (sendLock.current || generation !== sendGeneration.current || requestToken !== token) return;
+    sendLock.current = true;
+    setSendBusy(true);
+    let posted = false;
+    const context = onSending?.(delivery.text, { clientMessageId: delivery.clientMessageId, retry: () => executeSend(delivery) }) || {};
+    try {
+      if (!delivery.body) {
+        delivery.body = {
+          text: delivery.text,
+          clientMessageId: delivery.clientMessageId,
+          ...(modelOverride ? { model: modelOverride } : {}),
+          ...(effort ? { effort } : {}),
+          ...(mode !== 'default' ? { permissionMode: mode } : {}),
+        };
+      }
+      if (generation !== sendGeneration.current || requestToken !== token) return;
+      posted = true;
+      const result = await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, {
+        method: 'POST', body: JSON.stringify(delivery.body),
+      });
+      context.precise = result.clientMessageId === delivery.clientMessageId;
+      context.replayed = result.replayed === true;
+      onSent?.(delivery.body.text, result.runId, context);
+    } catch (e) {
+      if (e.code !== 'connection_changed' && e.code !== 'unauthorized') haptics.error();
+      onSendFailed?.(e, context, posted);
+      if (e.status === 409) {
+        onStatusConflict?.(e.data?.status || null);
+        const why = e.data?.status === 'terminal-driving' ? t('终端正在使用该会话')
+          : e.data?.status === 'daemon-driving' ? t('Claude 正在运行') : t('会话被占用');
+        toast(t('消息发送：{reason}', { reason: why }), 'error');
+      } else if (e.code === 'unknown_model') {
+        toast(t('消息发送：所选模型不可用'), 'error');
+        fetchModels().catch(() => {});
+      } else if (e.code === 'invalid_effort') {
+        toast(t('消息发送：思考程度参数无效'), 'error');
+      } else if (e.code === 'connection_changed') {
+        toast(t('连接已切换，正在核对原消息状态'), 'info');
+      } else if (e.code !== 'unauthorized') {
+        toast(sendFailureState(e, posted) === 'unconfirmed' ? t('消息发送：状态未确认，正在核对') : scopeErrMsg('消息发送', e, '发送失败'), 'error');
+      }
+    } finally {
+      sendLock.current = false;
+      setSendBusy(false);
+      setUploadProgress(null);
+    }
   };
 
   const removeFile = (i) => setFiles((xs) => xs.filter((_, idx) => idx !== i));
