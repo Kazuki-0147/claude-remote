@@ -1,0 +1,70 @@
+name: ios-ipa
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Expo SDK 57 enables the iOS scene lifecycle and requires the Xcode 27 toolchain.
+    runs-on: xcode-27
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Generate the iOS project
+        run: npx expo prebuild --platform ios --non-interactive --no-install
+
+      - name: Install CocoaPods dependencies
+        run: pod install --project-directory=ios
+
+      - name: Archive unsigned iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          test -n "$workspace"
+          scheme="$(xcodebuild -workspace "$workspace" -list -json | jq -r '.workspace.schemes[]' | grep -v '^Pods-' | head -n 1)"
+          test -n "$scheme"
+          xcodebuild \
+            -workspace "$workspace" \
+            -scheme "$scheme" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$GITHUB_WORKSPACE/app/build/ClaudeRemote.xcarchive" \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find build/ClaudeRemote.xcarchive/Products/Applications -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$app_path"
+          mkdir -p build/Payload
+          cp -R "$app_path" build/Payload/
+          ditto -c -k --sequesterRsrc --keepParent build/Payload build/ClaudeRemote-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeRemote-unsigned-ipa
+          path: app/build/ClaudeRemote-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

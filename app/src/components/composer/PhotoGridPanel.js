@@ -33,6 +33,29 @@ async function getAssetFileUri(id) {
   return asset.getUri();
 }
 
+function PhotoThumbnail({ id, size }) {
+  const [uri, setUri] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setUri('');
+    getAssetFileUri(id).then((next) => {
+      if (active && next) setUri(next);
+    }).catch(() => {
+      // The metadata can outlive a deleted or inaccessible photo. Keep the cell empty.
+    });
+    return () => { active = false; };
+  }, [id]);
+
+  return (
+    <Image
+      source={uri ? { uri } : undefined}
+      resizeMode="cover"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 async function convertAssetToJpeg(uriOrId) {
   const ctx = ImageManipulator.manipulate(uriOrId);
   const rendered = await ctx.renderAsync();
@@ -254,11 +277,7 @@ export function PhotoGridPanel({ width, height, onBack, onAllPhotos, onConfirm }
         accessibilityLabel={item.filename || t('照片')}
         style={{ width: cellSize, height: cellSize, backgroundColor: colors.bubble }}
       >
-        <Image
-          source={{ uri: item.id }}
-          resizeMode="cover"
-          style={{ width: cellSize, height: cellSize }}
-        />
+        <PhotoThumbnail id={item.id} size={cellSize} />
         {isSelected ? (
           <View
             pointerEvents="none"
