@@ -16,6 +16,7 @@ import type { SessionSummary } from "./types.js";
 
 const TITLE_MAX_CHARS = 60;
 const AI_TITLE_MAX_LINES = 256;
+const AI_TITLE_TAIL_BYTES = 1024 * 1024;
 const PREVIEW_MAX_CHARS = 80;
 const PREVIEW_INITIAL_TAIL_BYTES = 64 * 1024;
 const PREVIEW_MAX_TAIL_BYTES = 1024 * 1024;
@@ -124,7 +125,50 @@ async function scanHead(filePath: string): Promise<HeadInfo> {
     lines.close();
     stream.destroy();
   }
+  // ai-title 是异步元数据，通常追加在当前文件尾部。首次扫描可能早于
+  // Claude Code 写入它；下一次列表刷新从尾部再找一次，避免被前 256 行
+  // 的性能上限永久挡住。
+  if (aiTitle === "") {
+    const lateTitle = await scanTailAiTitle(filePath);
+    if (lateTitle !== "") aiTitle = lateTitle;
+  }
   return { cwd, title: aiTitle || fallbackTitle, entrypoint };
+}
+
+/** 在文件尾部寻找异步追加的 ai-title。只读最近 1 MiB，避免历史大文件全量扫描。 */
+async function scanTailAiTitle(filePath: string): Promise<string> {
+  let fileSize: number;
+  try {
+    fileSize = (await stat(filePath)).size;
+  } catch {
+    return "";
+  }
+  if (fileSize === 0) return "";
+  const handle = await open(filePath, "r");
+  try {
+    const readBytes = Math.min(fileSize, AI_TITLE_TAIL_BYTES);
+    const start = fileSize - readBytes;
+    const buffer = Buffer.alloc(readBytes);
+    const { bytesRead } = await handle.read(buffer, 0, readBytes, start);
+    const lines = buffer.subarray(0, bytesRead).toString("utf8").split("\n");
+    const firstIndex = start === 0 ? 0 : 1;
+    for (let i = lines.length - 1; i >= firstIndex; i -= 1) {
+      const trimmed = (lines[i] ?? "").trim();
+      if (trimmed === "") continue;
+      let value: unknown;
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+      if (!isRecord(value) || value.type !== "ai-title" || typeof value.aiTitle !== "string") continue;
+      const title = value.aiTitle.trim();
+      if (title !== "") return toSingleLineTruncated(title, TITLE_MAX_CHARS);
+    }
+    return "";
+  } finally {
+    await handle.close();
+  }
 }
 
 /** 尾部块读最后一条非 sidechain、非 isMeta 的 user/assistant 行，提取预览文本。 */

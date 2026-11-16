@@ -79,6 +79,26 @@ test("Claude Code ai-title overrides the first user message", async () => {
   }
 });
 
+test("late ai-title appended after the head scan still overrides the fallback", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "claude-remote-late-title-"));
+  try {
+    const projectDir = join(dir, "-tmp-proj");
+    await mkdir(projectDir);
+    const filler = Array.from({ length: 300 }, (_, i) => JSON.stringify({ type: "progress", index: i }));
+    const lines = [
+      JSON.stringify({ type: "user", uuid: "u1", cwd: "/tmp/proj", message: { role: "user", content: "首条消息回退标题" } }),
+      ...filler,
+      JSON.stringify({ type: "ai-title", sessionId: "99999999-ffff-4fff-8fff-999999999999", aiTitle: "延迟生成的真实标题" }),
+    ].join("\n");
+    await writeFile(join(projectDir, "99999999-ffff-4fff-8fff-999999999999.jsonl"), `${lines}\n`);
+
+    const sessions = await listSessions(dir);
+    assert.equal(sessions[0]?.title, "延迟生成的真实标题");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("empty and metadata-only sessions fall back to (空会话) with empty cwd", async () => {
   const sessions = await listSessions(fixturesDir);
   const byId = new Map(sessions.map((s) => [s.sessionId, s]));
