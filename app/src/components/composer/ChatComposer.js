@@ -18,6 +18,7 @@ import { AttachmentPicker } from './AttachmentPicker.js';
 import { ModelPicker } from './ModelPicker.js';
 import { EffortPicker } from './EffortPicker.js';
 import { LockReleaseButton } from './LockReleaseButton.js';
+import { SlashCommandList } from './SlashCommandList.js';
 import { haptics } from '../../lib/haptics.js';
 import { tooLargeMessage, uploadAttachments, withAttachmentNote } from '../../lib/attachments.js';
 
@@ -41,6 +42,7 @@ export function ChatComposer({
   const [files, setFiles] = useState([]);
   const [sendBusy, setSendBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null); // { done, total }
+  const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [modelOverride, setModelOverride] = useState(() => getSessionModel(sessionId));
   const [effort, setEffort] = useState(() => getSessionEffort(sessionId));
   const { options: effortOptions, reload: reloadEffortLevels } = useEffortLevels({ sessionId, model: modelOverride });
@@ -243,6 +245,16 @@ export function ChatComposer({
     if (h !== lastH.current) { lastH.current = h; setInputH(h); }
   };
 
+  const handleDraftChange = (text) => {
+    setDraft(text);
+    setShowSlashCommands(text.startsWith('/') && !text.includes(' '));
+  };
+
+  const handleCommandSelect = (command) => {
+    setDraft(command + ' ');
+    setShowSlashCommands(false);
+  };
+
   const removeFile = (i) => setFiles((xs) => xs.filter((_, idx) => idx !== i));
 
   // 跟键盘走用平移而非改 padding：键盘动画期间不触发整页重排（ChatScreen 列表同步用 contentInset 让位）。
@@ -262,10 +274,11 @@ export function ChatComposer({
         </View>
       ) : null}
       <ComposerCard disabled={!canSend}>
+        {showSlashCommands && <SlashCommandList onSelect={handleCommandSelect} filterText={draft} />}
         <AttachmentChips files={files} onRemove={removeFile} />
         <TextInput
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={handleDraftChange}
           multiline
           // 始终可编辑：不可编辑会让 iOS 收起键盘，发送那一刻整页重排（跳动）。能否发送由发送按钮控制
           editable
